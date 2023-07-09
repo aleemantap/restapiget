@@ -54,11 +54,13 @@ class CountryController extends Controller
 
     public function delete($id){
         try {
-            
             $country = Country::find($id);
-           
-            if ($country->delete()) {
-                return response()->json(['status' => true, 'message' => 'Country sucessfully deleted!']);
+            $current_date_time = \Carbon\Carbon::now()->toDateTimeString();
+            $country->delete_ts = $current_date_time; 
+            $country->deleted_by = "1";//Auth::user()->id
+            
+            if ($country->save()) {
+                return response()->json(['status' => true, 'message' => 'Country deleted successfully']);
             }
         } catch (\Exception $e) {
             return response()->json(['status' => false, 'message' => $e->getMessage()]);

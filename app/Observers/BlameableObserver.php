@@ -16,5 +16,7 @@ class BlameableObserver
     public function updating(Model $model)
     {
         $model->updated_by = "1";//Auth::user()->id;
+       
     }
+
 }
