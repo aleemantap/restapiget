@@ -17,6 +17,8 @@ class ProductController extends Controller
     }
 
     public function create(Request $request){
+
+       
      
         $product = new Product();
 
