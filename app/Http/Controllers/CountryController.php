@@ -3,67 +3,162 @@
 namespace App\Http\Controllers;
 use App\Models\Country;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
+
 
 class CountryController extends Controller
 {
-    public function index(){
-        $country = Country::all();
-        return response()->json($country);
-    }
+    public function list(Request $request){
+        try {   
+            $pageSize = $request->pageSize;
+            $pageNum = $request->pageNum;
+            $code = $request->code;
+            $name = $request->name;
 
+            
+            $query = Country::query()->whereNotNull('name');
+            if($request->code != '')
+            {
+                $query->where('code', $request->code);
+            }
+            if($request->name != '')
+            {
+                $query->where('name', $request->name);
+            }
+
+            $count = $query->get()->count();
+
+            $results = $query->offset(($pageNum-1) * $pageSize) 
+            ->limit($pageSize)->orderBy('name', 'ASC')->get();
+            
+        
+            return response()->json(['responseCode' => '0000', 
+                                    'responseDesc' => 'OK',
+                                    'pageSize'  =>  $pageSize,
+                                    'totalPage' => ceil($count/$pageSize),
+                                    'total' => $count,
+                                    'rows' => $results
+                                ]);
+        } catch (\Exception $e) {
+            return response()->json(['status' => '3333', 'message' => $e->getMessage()]);
+        }
+    }
 
     public function create(Request $request){
+
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|max:50',
+            'code' => 'required|max:2'
+        ]);
+ 
+        if ($validator->fails()) {
+            return response()->json(['responseCode' => '5555', //gagal validasi
+                                     'responseDesc' => $validator->errors()]
+                                    );
+        }
+
         try {
             $country = new Country();
-            $country->id = Str::uuid();
-            $country->version = $request->version;
+            $country->version = 1; 
             $country->code = $request->code;
             $country->name = $request->name;
             
-
-
             if ($country->save()) {
-                return response()->json(['status' => true, 'message' => 'Country created successfully']);
+                return response()->json(['responseCode' => '0000', //sukses insert
+                                          'responseDesc' => 'Country created successfully',
+                                          'generatedId'  =>  $country->id,
+                                        ]);
             }
         } catch (\Exception $e) {
-            return response()->json(['status' => false, 'message' => $e->getMessage()]);
+            return response()->json(['responseCode' => '3333', //gagal exception 
+                                     'responseDesc' => 'Country created Failure'
+                                    ]);
         }
 
     }
 
-    public function update(Request $request, $id){
-        try {
-            $country = Country::find($id);
+    public function update(Request $request){
 
-            $country->version = $request->version;
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|max:50',
+            'code' => 'required|max:2',
+            'id' => 'required' 
+        ]);
+ 
+        if ($validator->fails()) {
+            return response()->json(['responseCode' => '5555', //gagal validasi
+                                     'responseDesc' => $validator->errors()]
+                                    );
+        }
+
+        try {
+           
+            $country = Country::where([
+                ['id',$request->id],
+                ['code',$request->code],
+                ['version', $request->version]
+            ])->first();
+
+            $country->version = $request->version + 1;
             $country->code = $request->code;
             $country->name = $request->name;
             if ($country->save()) {
-                return response()->json(['status' => true, 'message' => 'Country updated successfully']);
+                return response()->json(['responseCode' => '0000', //sukses update
+                                          'responseDesc' => 'Country updated successfully',
+                                        ]);
             }
         } catch (\Exception $e) {
-            return response()->json(['status' => false, 'message' => $e->getMessage()]);
+            return response()->json(['responseCode' => '3333', 'responseDesc' => $e->getMessage()]);
         }
     }
 
-    public function show($id){
-        $country = Country::find($id);
-        return response()->json($country);
+    public function show(Request $request){
+
+        try {
+            $country = Country::where('id',$request->id)->get();
+
+            if($country->count()>0)
+            {
+                return response()->json([
+                    'responseCode' => '0000', 
+                    'responseDesc' => 'OK',
+                    'data' =>  $country
+                    
+                ]);
+            }
+            else
+            {
+                return response()->json([
+                    'responseCode' => '0400', 
+                    'responseDesc' => 'Data Not Found',
+                    'data' =>  $country
+                    
+                ]);
+            }
+            
+        }
+        catch(\Exception $e)
+        {
+            return response()->json(['responseCode' => '3333', 'responseDesc' => $e->getMessage()]);
+        }
     }
 
-    public function delete($id){
+    public function delete(Request $request){
         try {
-            $country = Country::find($id);
+            $country = Country::where([
+                ['id',$request->id],
+                ['version', $request->version]
+            ])->first();
             $current_date_time = \Carbon\Carbon::now()->toDateTimeString();
             $country->delete_ts = $current_date_time; 
-            $country->deleted_by = "1";//Auth::user()->id
+            $country->deleted_by = "admin";//Auth::user()->id
             
             if ($country->save()) {
-                return response()->json(['status' => true, 'message' => 'Country deleted successfully']);
+                return response()->json(['responseCode' => '0000', 'responseDesc' => 'Country deleted successfully']);
             }
         } catch (\Exception $e) {
-            return response()->json(['status' => false, 'message' => $e->getMessage()]);
+            return response()->json(['responseCode' => '3333', 'responseDesc' => $e->getMessage()]);
         }
     }
     

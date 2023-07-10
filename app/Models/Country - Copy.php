@@ -3,16 +3,11 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use App\Traits\Uuid;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Blameable;
 
 class Country extends Model 
 {
     use Blameable;
-    use HasFactory;
-    use Uuid;
-	//protected $primaryKey = 'uuid';
     protected $table = "tms_country";
     const CREATED_AT = 'create_ts';
     const UPDATED_AT = 'update_ts';
@@ -24,13 +19,7 @@ class Country extends Model
    
 
     protected $fillable = [
-        'version', 'create_ts', 'created_by', 'update_ts', 'updated_by', 'delete_ts', 'deleted_by', 'code', 'name'
+        'uuid','version', 'create_ts', 'created_by', 'update_ts', 'updated_by', 'delete_ts', 'deleted_by', 'code', 'name'
     ];
-	
-	public function state()
-    {
-       
-        return $this->hasMany('App\Models\State');
-    }
 
 }
