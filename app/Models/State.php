@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use App\Traits\Uuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Blameable;
+use App\Models\City;
 
 class State extends Model 
 {
@@ -28,6 +29,12 @@ class State extends Model
     {
         return $this->belongsTo('App\Models\Country');
     }
+
+    public function city()
+    {
+        return $this->hasMany('App\Models\City');
+    }
+   
 
 
 }
