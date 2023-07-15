@@ -1,48 +1,43 @@
 <?php
 
 namespace App\Http\Controllers;
-use App\Models\City;
+use App\Models\DeleteTaskApp;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
 
 
-class CityController extends Controller
+class DeleteTaskAppController extends Controller
 {
     public function list(Request $request){
 
         try {
-
                 $pageSize = $request->pageSize;
                 $pageNum = $request->pageNum;
-                $states_id = $request->states_id;
-                $name = $request->name;
-                $query = City ::query()
+                $app_name = $request->app_name;
+                $package_name = $request->package_name;
+                $app_version = $request->app_version;
+              
+                
+                $query = DeleteTaskApp::whereNotNull('id');
 
-                    ->with(['state' => function ($query) {
-                        $query->select('id', 'name');
-                        
-                    }])
-                    ->whereNull('deleted_by');
-                if($request->states_id != '')
+                 
+                if($request->app_name != '')
                 {
-                    $query->where('states_id', $request->states_id);
+                    $query->where('app_name', $request->app_name);
                 }
-                if($request->name != '')
+                if($request->package_name != '')
                 {
-                    $query->where('name', $request->name);
+                    $query->where('package_name', $request->package_name);
                 }
-
-                //$count = $query->get()->count();
+               
+                $count = $query->get()->count();
             
                 $results = $query->offset(($pageNum-1) * $pageSize) 
-                ->limit($pageSize)->orderBy('create_ts', 'DESC')
+                ->limit($pageSize)->orderBy('app_name', 'ASC')
+                ->get();
                 
-                ->get()->makeHidden(['delete_ts','deleted_by']);
-
-                $count = count($results->toArray());
-
-                if( $count  > 0)
+                if($count > 0)
                 {
                     return response()->json(['responseCode' => '0000', 
                                         'responseDesc' => 'OK',
@@ -60,26 +55,19 @@ class CityController extends Controller
                                     ]);
                 }
                 
-            
-                return response()->json(['responseCode' => '0000', 
-                                        'responseDesc' => 'OK',
-                                        'pageSize'  =>  $pageSize,
-                                        'totalPage' => ceil($count/$pageSize),
-                                        'total' => $count,
-                                        'rows' => $results
-                                    ]);
         } catch (\Exception $e) {
             return response()->json(['status' => '3333', 'message' => $e->getMessage()]);
         }
     }
 
-
+   
     public function create(Request $request){
-
-        
+     
         $validator = Validator::make($request->all(), [
-            'name' => 'required|max:50|unique:tms_city',
-            'states_id' => 'required' 
+            'app_name' => 'required|max:255|unique:tms_delete_task_app',
+            'package_name' => 'required|max:255',
+            'app_version' =>  'required|max:255',
+            'task_id' =>  'required'
         ]);
  
         if ($validator->fails()) {
@@ -87,24 +75,26 @@ class CityController extends Controller
                                      'responseDesc' => $validator->errors()]
                                     );
         }
-
+      
         try {
 
-            $city = new City();
-            $city->version = 1; 
-            $city->name = $request->name;
-            $city->states_id = $request->states_id;
-
-            if ($city->save()) {
+            $dt = new DeleteTaskApp();
+         
+            $dt->app_name  =  $request->app_name;
+            $dt->package_name = $request->package_name;
+            $dt->app_version = $request->app_version;
+            $dt->task_id = $request->task_id;
+         
+            if ($dt->save()) {
                 return response()->json(['responseCode' => '0000', //sukses insert
-                                          'responseDesc' => 'City created successfully',
-                                          
+                                          'responseDesc' => 'Delete Task App created successfully',
+                                          'generatedId' =>  $t->id
                                         ]);
             }
         } catch (\Exception $e) {
             return response()->json(['responseCode' => '3333', //gagal exception 
-                                     'responseDesc' =>  "City Create Failure"
-           ]);
+                                     'responseDesc' => $e->getMessage()
+                                    ]);
         }
 
     }
@@ -112,10 +102,10 @@ class CityController extends Controller
     public function update(Request $request){
 
         $validator = Validator::make($request->all(), [
-            'version' => 'required|numeric|max:32',
-            'name' => 'required|max:50|unique:tms_city',
-            'states_id' => 'required',
-            'id' => 'required' 
+            'app_name' => 'required|max:255|unique:tms_delete_task_app',
+            'package_name' => 'required|max:255',
+            'app_version' =>  'required|max:255',
+            'task_id' =>  'required'
         ]);
  
         if ($validator->fails()) {
@@ -126,45 +116,51 @@ class CityController extends Controller
 
         try {
 
-            $city = City::where([
-                ['id',$request->id],
-                ['version',$request->version],
-                ['states_id', $request->states_id]
+            $dt = DeleteTaskApp::where([
+                ['id',$request->id]
+             
+               
             ])->first();
+            $dt->app_name  =  $request->app_name;
+            $dt->package_name = $request->package_name;
+            $dt->app_version = $request->app_version;
+            $dt->task_id = $request->task_id;
+           
 
-            $city->version = $request->version + 1;
-            $city->name = $request->name;
-            
-            if ($city->save()) {
+            if ($dt->save()) {
                 return response()->json(['responseCode' => '0000', //sukses update
-                                          'responseDesc' => 'City updated successfully',
+                                          'responseDesc' => 'Delete Task App updated successfully',
+                                        
                                         ]);
             }
         } catch (\Exception $e) {
-            return response()->json(['responseCode' => '3333', 'responseDesc' => "City Update Failure"]);
+            return response()->json([
+            'responseCode' => '3333', 
+            'responseDesc' => "Delete Task App Update Failure"
+        ]);
         }
     }
     
     public function show(Request $request){
         try {
-            $city = City::where('id', $request->id)->with(['state' => function ($query) {
-                $query->select('id', 'name');
-            }])->get();
-            if($city->count()>0)
+            $t = DeleteTaskApp::where('id', $request->id);
+            if($t->get()->count()>0)
             {
+                $t =  $t->get();
                 return response()->json([
                     'responseCode' => '0000', 
                     'responseDesc' => 'OK',
-                    'data' => $city
-                   
+                    'data' => $t
+                    
                 ]);
             }
             else
             {
+           
                 return response()->json([
                     'responseCode' => '0400', 
                     'responseDesc' => 'Data Not Found',
-                    'data' =>  $city                    
+                    'data' => []                   
                 ]);
             }
             
@@ -175,10 +171,10 @@ class CityController extends Controller
         }
     }
 
+
     public function delete(Request $request){
         try {
-            $t= City::where('id','=',$request->id)
-            ->where('version','=',$request->version);
+            $t= DeleteTaskApp::where('id','=',$request->id);
              $cn = $t->get()->count();
              if( $cn > 0)
              {
@@ -187,7 +183,7 @@ class CityController extends Controller
                 $update_t->delete_ts = $current_date_time; 
                 $update_t->deleted_by = "admin";//Auth::user()->id 
                 if ($update_t->save()) {
-                     return response()->json(['responseCode' => '0000', 'responseDesc' => 'City deleted successfully']);
+                     return response()->json(['responseCode' => '0000', 'responseDesc' => 'Download Task App deleted successfully']);
                  }
              }
              else
@@ -201,7 +197,6 @@ class CityController extends Controller
         }
     }
 
-    
 
     
 }
