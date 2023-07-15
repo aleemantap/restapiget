@@ -17,7 +17,7 @@ class CountryController extends Controller
             $name = $request->name;
 
             
-            $query = Country::query()->whereNotNull('name');
+            $query = Country::query()->whereNull('deleted_by');
             if($request->code != '')
             {
                 $query->where('code', $request->code);
@@ -30,7 +30,7 @@ class CountryController extends Controller
             $count = $query->get()->count();
 
             $results = $query->offset(($pageNum-1) * $pageSize) 
-            ->limit($pageSize)->orderBy('name', 'ASC')->get();
+            ->limit($pageSize)->orderBy('create_ts', 'DESC')->get();
             
         
             return response()->json(['responseCode' => '0000', 
@@ -96,7 +96,7 @@ class CountryController extends Controller
            
             $country = Country::where([
                 ['id',$request->id],
-                ['code',$request->code],
+                //['code',$request->code],
                 ['version', $request->version]
             ])->first();
 

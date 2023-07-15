@@ -7,26 +7,19 @@ use App\Traits\Uuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Blameable;
 
-class City extends Model 
+class HeartBeat extends Model 
 {
     use Blameable;
 	use HasFactory;
     use Uuid;
-    protected $table = "tms_city";
+    protected $table = "tms_heart_beat";
 	const CREATED_AT = 'create_ts';
     const UPDATED_AT = 'update_ts';
     
-   
-
-    //protected $hidden = ['states_id'];
-	
-	public function state()
-    {
-        return $this->belongsTo('App\Models\State', 'states_id', 'id');
-       //return $this->belongsTo('App\Models\State');
-    }
-
-  
+	//public function state()
+    //{
+    //    return $this->belongsTo('App\Models\State', 'states_id', 'id');
+    //}
 
 
 }
