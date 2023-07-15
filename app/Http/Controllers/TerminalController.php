@@ -1,48 +1,56 @@
 <?php
 
 namespace App\Http\Controllers;
-use App\Models\City;
+use App\Models\Terminal;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
 
 
-class CityController extends Controller
+class TerminalController extends Controller
 {
     public function list(Request $request){
 
         try {
-
                 $pageSize = $request->pageSize;
                 $pageNum = $request->pageNum;
-                $states_id = $request->states_id;
-                $name = $request->name;
-                $query = City ::query()
+                $model_id = $request->model_id;
+                $merchant_id = $request->merchant_id;
+                $sn = $request->sn;
+                $profile_id = $request->profile_id;
+                $id = $request->id;
+                
+                
+                $query = Terminal::whereNull('deleted_by');
 
-                    ->with(['state' => function ($query) {
-                        $query->select('id', 'name');
-                        
-                    }])
-                    ->whereNull('deleted_by');
-                if($request->states_id != '')
+                 
+                if($request->model_id != '')
                 {
-                    $query->where('states_id', $request->states_id);
+                    $query->where('model_id', $request->model_id);
                 }
-                if($request->name != '')
+                if($request->merchant_id != '')
                 {
-                    $query->where('name', $request->name);
+                    $query->where('merchant_id', $request->merchant_id);
                 }
-
-                //$count = $query->get()->count();
+                if($request->sn != '')
+                {
+                    $query->where('sn', $request->sn);
+                }
+                if($request->profile_id != '')
+                {
+                    $query->where('profile_id', $request->profile_id);
+                }
+                if($request->id != '')
+                {
+                    $query->where('id', $request->id);
+                }
+                $count = $query->get()->count();
             
                 $results = $query->offset(($pageNum-1) * $pageSize) 
                 ->limit($pageSize)->orderBy('create_ts', 'DESC')
+                ->get()->makeHidden(['deleted_by','delete_ts']);
                 
-                ->get()->makeHidden(['delete_ts','deleted_by']);
-
-                $count = count($results->toArray());
-
-                if( $count  > 0)
+                if($count > 0)
                 {
                     return response()->json(['responseCode' => '0000', 
                                         'responseDesc' => 'OK',
@@ -60,26 +68,23 @@ class CityController extends Controller
                                     ]);
                 }
                 
-            
-                return response()->json(['responseCode' => '0000', 
-                                        'responseDesc' => 'OK',
-                                        'pageSize'  =>  $pageSize,
-                                        'totalPage' => ceil($count/$pageSize),
-                                        'total' => $count,
-                                        'rows' => $results
-                                    ]);
         } catch (\Exception $e) {
             return response()->json(['status' => '3333', 'message' => $e->getMessage()]);
         }
     }
 
-
+   
     public function create(Request $request){
-
-        
+     
         $validator = Validator::make($request->all(), [
-            'name' => 'required|max:50|unique:tms_city',
-            'states_id' => 'required' 
+            'imei' => 'required|max:25',
+            'model_id' => 'required|max:255',
+            'merchant_id' => 'required|max:255',
+            'sn' => 'max:255',
+            'tenant_id' =>'required',
+            'is_locked' => 'numeric',
+            'locked_reason' => 'max:255'
+
         ]);
  
         if ($validator->fails()) {
@@ -87,24 +92,30 @@ class CityController extends Controller
                                      'responseDesc' => $validator->errors()]
                                     );
         }
-
+      
         try {
 
-            $city = new City();
-            $city->version = 1; 
-            $city->name = $request->name;
-            $city->states_id = $request->states_id;
-
-            if ($city->save()) {
+            $t = new Terminal();
+            $t->version = 1; 
+            $t->imei = $request->imei;
+            $t->model_id = $request->model;
+            $t->merchant_id = $request->merchant_id;
+            $t->tenant_id = $request->tenant_id;
+            $t->sn = $request->sn;
+            $t->profile_id = $request->profile_id;
+            $t->is_locked = $request->is_locked;
+            $t->locked_reason = $request->locked_reason;
+          
+            if ($t->save()) {
                 return response()->json(['responseCode' => '0000', //sukses insert
-                                          'responseDesc' => 'City created successfully',
-                                          
+                                          'responseDesc' => 'Terminal  created successfully',
+                                          'generatedId' =>  $t->id
                                         ]);
             }
         } catch (\Exception $e) {
             return response()->json(['responseCode' => '3333', //gagal exception 
-                                     'responseDesc' =>  "City Create Failure"
-           ]);
+                                     'responseDesc' => $e->getMessage()
+                                    ]);
         }
 
     }
@@ -113,9 +124,15 @@ class CityController extends Controller
 
         $validator = Validator::make($request->all(), [
             'version' => 'required|numeric|max:32',
-            'name' => 'required|max:50|unique:tms_city',
-            'states_id' => 'required',
-            'id' => 'required' 
+            'id' => 'required',
+            'imei' => 'required|max:25',
+            'model_id' => 'required|max:255',
+            'merchant_id' => 'required|max:255',
+            'sn' => 'max:255',
+            'tenant_id' =>'required',
+            'is_locked' => 'numeric',
+            'locked_reason' => 'max:255'
+           
         ]);
  
         if ($validator->fails()) {
@@ -126,45 +143,56 @@ class CityController extends Controller
 
         try {
 
-            $city = City::where([
+            $t = Terminal::where([
                 ['id',$request->id],
-                ['version',$request->version],
-                ['states_id', $request->states_id]
+                ['version',$request->version]
+               
             ])->first();
-
-            $city->version = $request->version + 1;
-            $city->name = $request->name;
-            
-            if ($city->save()) {
+            $t->version = $request->version + 1;
+            $t->imei = $request->imei;
+            $t->model_id = $request->model;
+            $t->merchant_id = $request->merchant_id;
+            $t->tenant_id = $request->tenant_id;
+            $t->sn = $request->sn;
+            $t->profile_id = $request->profile_id;
+            $t->is_locked = $request->is_locked;
+            $t->locked_reason = $request->locked_reason;
+            if ($t->save()) {
                 return response()->json(['responseCode' => '0000', //sukses update
-                                          'responseDesc' => 'City updated successfully',
+                                          'responseDesc' => 'Termianl  updated successfully',
+                                        
                                         ]);
             }
         } catch (\Exception $e) {
-            return response()->json(['responseCode' => '3333', 'responseDesc' => "City Update Failure"]);
+            return response()->json([
+            'responseCode' => '3333', 
+            'responseDesc' => "Terminal Update Failure"
+        ]);
         }
     }
     
     public function show(Request $request){
         try {
-            $city = City::where('id', $request->id)->with(['state' => function ($query) {
-                $query->select('id', 'name');
-            }])->get();
-            if($city->count()>0)
+            $t = TerminalGroup::where('id', $request->id)->whereNull('deleted_by');
+            
+            
+            if($t->get()->count()>0)
             {
+                $t =  $t->get()->makeHidden(['deleted_by', 'delete_ts']);
                 return response()->json([
                     'responseCode' => '0000', 
                     'responseDesc' => 'OK',
-                    'data' => $city
-                   
+                    'data' => $t
+                    
                 ]);
             }
             else
             {
+           
                 return response()->json([
                     'responseCode' => '0400', 
                     'responseDesc' => 'Data Not Found',
-                    'data' =>  $city                    
+                    'data' => []                   
                 ]);
             }
             
@@ -175,9 +203,10 @@ class CityController extends Controller
         }
     }
 
+
     public function delete(Request $request){
         try {
-            $t= City::where('id','=',$request->id)
+            $t= Terminal::where('id','=',$request->id)
             ->where('version','=',$request->version);
              $cn = $t->get()->count();
              if( $cn > 0)
@@ -187,7 +216,7 @@ class CityController extends Controller
                 $update_t->delete_ts = $current_date_time; 
                 $update_t->deleted_by = "admin";//Auth::user()->id 
                 if ($update_t->save()) {
-                     return response()->json(['responseCode' => '0000', 'responseDesc' => 'City deleted successfully']);
+                     return response()->json(['responseCode' => '0000', 'responseDesc' => 'Terminal deleted successfully']);
                  }
              }
              else
@@ -201,7 +230,14 @@ class CityController extends Controller
         }
     }
 
-    
+    public function restart(Request $request){
+
+    }
+
+    public function lockUnlock(Request $request){
+
+    }
+
 
     
 }

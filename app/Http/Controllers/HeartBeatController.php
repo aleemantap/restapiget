@@ -1,13 +1,13 @@
 <?php
 
 namespace App\Http\Controllers;
-use App\Models\City;
+use App\Models\HeartBeat;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
 
 
-class CityController extends Controller
+class HeartBeatController extends Controller
 {
     public function list(Request $request){
 
@@ -15,34 +15,29 @@ class CityController extends Controller
 
                 $pageSize = $request->pageSize;
                 $pageNum = $request->pageNum;
-                $states_id = $request->states_id;
-                $name = $request->name;
-                $query = City ::query()
+                $sn = $request->sn;
+                $cell_name = $request->cell_name;
+                 
+                $query = HeartBeat::whereNotNull('id');
 
-                    ->with(['state' => function ($query) {
-                        $query->select('id', 'name');
-                        
-                    }])
-                    ->whereNull('deleted_by');
-                if($request->states_id != '')
+                 
+                if($request->sn != '')
                 {
-                    $query->where('states_id', $request->states_id);
+                    $query->where('sn', $request->sn);
                 }
-                if($request->name != '')
+                if($request->cell_name != '')
                 {
-                    $query->where('name', $request->name);
+                    $query->where('cell_name', $request->cell_name);
                 }
-
-                //$count = $query->get()->count();
+                
+               
+                $count = $query->get()->count();
             
                 $results = $query->offset(($pageNum-1) * $pageSize) 
                 ->limit($pageSize)->orderBy('create_ts', 'DESC')
+                ->get();
                 
-                ->get()->makeHidden(['delete_ts','deleted_by']);
-
-                $count = count($results->toArray());
-
-                if( $count  > 0)
+                if($count > 0)
                 {
                     return response()->json(['responseCode' => '0000', 
                                         'responseDesc' => 'OK',
@@ -57,17 +52,10 @@ class CityController extends Controller
                     return response()->json(['responseCode' => '0400', 
                                         'responseDesc' => 'Data Not Found',
                                         'rows' => $results
+                                        
                                     ]);
                 }
                 
-            
-                return response()->json(['responseCode' => '0000', 
-                                        'responseDesc' => 'OK',
-                                        'pageSize'  =>  $pageSize,
-                                        'totalPage' => ceil($count/$pageSize),
-                                        'total' => $count,
-                                        'rows' => $results
-                                    ]);
         } catch (\Exception $e) {
             return response()->json(['status' => '3333', 'message' => $e->getMessage()]);
         }
@@ -75,11 +63,18 @@ class CityController extends Controller
 
 
     public function create(Request $request){
-
-        
+     
         $validator = Validator::make($request->all(), [
-            'name' => 'required|max:50|unique:tms_city',
-            'states_id' => 'required' 
+            'sn' => 'required|max:50',
+            'battery_temp' => 'required|numeric',
+            'battery_percentage' =>  'required|numeric',
+            'latitude' =>   'max:53',
+            'longitude' =>  'max:53',
+            'version' => 'required|numeric',
+            'cell_name' => 'max:53',
+            'cell_type' => 'max:10',
+            'cell_strength' => 'numeric',
+           
         ]);
  
         if ($validator->fails()) {
@@ -90,21 +85,28 @@ class CityController extends Controller
 
         try {
 
-            $city = new City();
-            $city->version = 1; 
-            $city->name = $request->name;
-            $city->states_id = $request->states_id;
-
-            if ($city->save()) {
+            $hb = new HeartBeat();
+            $hb->version = 1; 
+            $hb->sn = $request->sn;
+            $hb->battery_temp = $request->battery_temp;
+            $hb->battery_percentage = $request->battery_percentage;
+            $hb->latitude = $request->latitude;
+            $hb->longitude = $request->longitude;
+            $hb->version = $request->version;
+            $hb->cell_name = $request->cell_name;
+            $hb->cell_type = $request->cell_type;
+            $hb->cell_strength = $request->cell_strength;
+        
+            if ($model->save()) {
                 return response()->json(['responseCode' => '0000', //sukses insert
-                                          'responseDesc' => 'City created successfully',
-                                          
+                                          'responseDesc' => 'Hear Beat created successfully',
+                                          'generatedId' =>  $model->id
                                         ]);
             }
         } catch (\Exception $e) {
             return response()->json(['responseCode' => '3333', //gagal exception 
-                                     'responseDesc' =>  "City Create Failure"
-           ]);
+                                     'responseDesc' => $e->getMessage()
+                                    ]);
         }
 
     }
@@ -113,9 +115,15 @@ class CityController extends Controller
 
         $validator = Validator::make($request->all(), [
             'version' => 'required|numeric|max:32',
-            'name' => 'required|max:50|unique:tms_city',
-            'states_id' => 'required',
-            'id' => 'required' 
+            'id' => 'required',
+            'sn' => 'required|max:50',
+            'battery_temp' => 'required|numeric',
+            'battery_percentage' =>  'required|numeric',
+            'latitude' =>   'max:53',
+            'longitude' =>  'max:53',
+            'cell_name' => 'max:53',
+            'cell_type' => 'max:10',
+            'cell_strength' => 'numeric',
         ]);
  
         if ($validator->fails()) {
@@ -126,45 +134,59 @@ class CityController extends Controller
 
         try {
 
-            $city = City::where([
+            $hb = HearBeat::where([
                 ['id',$request->id],
-                ['version',$request->version],
-                ['states_id', $request->states_id]
+                ['version',$request->version]
+               
             ])->first();
 
-            $city->version = $request->version + 1;
-            $city->name = $request->name;
+            $hb->version = $request->version + 1;
+            $hb->sn = $request->sn;
+            $hb->battery_temp = $request->battery_temp;
+            $hb->battery_percentage = $request->battery_percentage;
+            $hb->latitude = $request->latitude;
+            $hb->longitude = $request->longitude;
+            $hb->cell_name = $request->cell_name;
+            $hb->cell_type = $request->cell_type;
+            $hb->cell_strength = $request->cell_strength;
+          
             
-            if ($city->save()) {
+            if ($hb->save()) {
                 return response()->json(['responseCode' => '0000', //sukses update
-                                          'responseDesc' => 'City updated successfully',
+                                          'responseDesc' => 'Hear Beat updated successfully',
+                                        
                                         ]);
             }
         } catch (\Exception $e) {
-            return response()->json(['responseCode' => '3333', 'responseDesc' => "City Update Failure"]);
+            return response()->json([
+            'responseCode' => '3333', 
+            'responseDesc' => "Hear Beat Update Failure"
+        ]);
         }
     }
     
     public function show(Request $request){
         try {
-            $city = City::where('id', $request->id)->with(['state' => function ($query) {
-                $query->select('id', 'name');
-            }])->get();
-            if($city->count()>0)
+            $hb = HearBeat::where('id', $request->id);
+            
+            
+            if($hb->get()->count()>0)
             {
+                $hb =  $hb->get();
                 return response()->json([
                     'responseCode' => '0000', 
                     'responseDesc' => 'OK',
-                    'data' => $city
-                   
+                    'data' => $hb
+                    
                 ]);
             }
             else
             {
+           
                 return response()->json([
                     'responseCode' => '0400', 
                     'responseDesc' => 'Data Not Found',
-                    'data' =>  $city                    
+                    'data' => []                   
                 ]);
             }
             
@@ -175,19 +197,20 @@ class CityController extends Controller
         }
     }
 
+
     public function delete(Request $request){
         try {
-            $t= City::where('id','=',$request->id)
+            $m = HearBeat::where('id','=',$request->id)
             ->where('version','=',$request->version);
-             $cn = $t->get()->count();
+             $cn = $m->get()->count();
              if( $cn > 0)
              {
-                $update_t = $t->first();
+                $update = $m->first();
                 $current_date_time = \Carbon\Carbon::now()->toDateTimeString();
-                $update_t->delete_ts = $current_date_time; 
-                $update_t->deleted_by = "admin";//Auth::user()->id 
-                if ($update_t->save()) {
-                     return response()->json(['responseCode' => '0000', 'responseDesc' => 'City deleted successfully']);
+                $update->delete_ts = $current_date_time; 
+                $update->deleted_by = "admin";//Auth::user()->id 
+                if ($update->save()) {
+                     return response()->json(['responseCode' => '0000', 'responseDesc' => 'Hear Beat  deleted successfully']);
                  }
              }
              else
@@ -201,7 +224,6 @@ class CityController extends Controller
         }
     }
 
-    
 
     
 }

@@ -13,7 +13,7 @@ class DeviceModel extends Model
     use HasFactory;
     use Uuid;
 	//protected $primaryKey = 'uuid';
-    protected $table = "tms_country";
+    protected $table = "tms_device_model";
     const CREATED_AT = 'create_ts';
     const UPDATED_AT = 'update_ts';
     /**
@@ -23,14 +23,5 @@ class DeviceModel extends Model
      */
    
 
-    // protected $fillable = [
-    //     'version', 'create_ts', 'created_by', 'update_ts', 'updated_by', 'delete_ts', 'deleted_by', 'code', 'name'
-    // ];
-	
-	// public function state()
-    // {
-       
-    //     return $this->hasMany('App\Models\State');
-    // }
 
 }

@@ -1,48 +1,46 @@
 <?php
 
 namespace App\Http\Controllers;
-use App\Models\City;
+use App\Models\DeleteTaskLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
 
 
-class CityController extends Controller
+class DeleteTaskLogController extends Controller
 {
     public function list(Request $request){
 
         try {
-
                 $pageSize = $request->pageSize;
                 $pageNum = $request->pageNum;
-                $states_id = $request->states_id;
-                $name = $request->name;
-                $query = City ::query()
+                $task_id = $request->task_id;
+                $version = $request->version; 
+                $app_id = $request->app_id; 
+                
+                $query = DeleteTaskLog::whereNotNull('id');
 
-                    ->with(['state' => function ($query) {
-                        $query->select('id', 'name');
-                        
-                    }])
-                    ->whereNull('deleted_by');
-                if($request->states_id != '')
+                 
+                if($request->app_id != '')
                 {
-                    $query->where('states_id', $request->states_id);
+                    $query->where('app_id', $request->app_id);
                 }
-                if($request->name != '')
+                if($request->version != '')
                 {
-                    $query->where('name', $request->name);
+                    $query->where('version', $request->version);
                 }
-
-                //$count = $query->get()->count();
+                if($request->task_id != '')
+                {
+                    $query->where('task_id', $request->task_id);
+                }
+               
+                $count = $query->get()->count();
             
                 $results = $query->offset(($pageNum-1) * $pageSize) 
                 ->limit($pageSize)->orderBy('create_ts', 'DESC')
+                ->get();
                 
-                ->get()->makeHidden(['delete_ts','deleted_by']);
-
-                $count = count($results->toArray());
-
-                if( $count  > 0)
+                if($count > 0)
                 {
                     return response()->json(['responseCode' => '0000', 
                                         'responseDesc' => 'OK',
@@ -60,26 +58,24 @@ class CityController extends Controller
                                     ]);
                 }
                 
-            
-                return response()->json(['responseCode' => '0000', 
-                                        'responseDesc' => 'OK',
-                                        'pageSize'  =>  $pageSize,
-                                        'totalPage' => ceil($count/$pageSize),
-                                        'total' => $count,
-                                        'rows' => $results
-                                    ]);
         } catch (\Exception $e) {
             return response()->json(['status' => '3333', 'message' => $e->getMessage()]);
         }
     }
 
-
+   
     public function create(Request $request){
-
-        
+     
         $validator = Validator::make($request->all(), [
-            'name' => 'required|max:50|unique:tms_city',
-            'states_id' => 'required' 
+            'version' => 'required|numeric',
+            'task_id' => 'required',
+            'app_id' => 'required',
+            'terminal_id' =>  'required|numeric',
+            'activity' =>  'required|numeric',
+            'last_broadcast_ts' => 'max:6',
+            'old_activity' => 'numeric',
+            'message' => 'max:255',
+            
         ]);
  
         if ($validator->fails()) {
@@ -87,24 +83,29 @@ class CityController extends Controller
                                      'responseDesc' => $validator->errors()]
                                     );
         }
-
+      
         try {
 
-            $city = new City();
-            $city->version = 1; 
-            $city->name = $request->name;
-            $city->states_id = $request->states_id;
-
-            if ($city->save()) {
+            $dt = new DeleteTaskLog();
+            $dt->version = 1; 
+            $dt->task_id  =  $request->task_id;
+            $dt->app_id = $request->app_id;
+            $dt->activity = $request->activity;
+            $dt->terminal_id = $request->terminal_id;
+            $dt->last_broadcast_ts = $request->last_broadcast_ts;
+            $dt->old_activity = $request->old_activity;
+            $dt->message = $request->message;
+            
+            if ($dt->save()) {
                 return response()->json(['responseCode' => '0000', //sukses insert
-                                          'responseDesc' => 'City created successfully',
-                                          
+                                          'responseDesc' => 'Delete Task Log created successfully',
+                                          'generatedId' =>  $t->id
                                         ]);
             }
         } catch (\Exception $e) {
             return response()->json(['responseCode' => '3333', //gagal exception 
-                                     'responseDesc' =>  "City Create Failure"
-           ]);
+                                     'responseDesc' => $e->getMessage()
+                                    ]);
         }
 
     }
@@ -112,10 +113,17 @@ class CityController extends Controller
     public function update(Request $request){
 
         $validator = Validator::make($request->all(), [
-            'version' => 'required|numeric|max:32',
-            'name' => 'required|max:50|unique:tms_city',
-            'states_id' => 'required',
-            'id' => 'required' 
+           
+            'id' => 'required',
+            'version' => 'required|numeric',
+            'task_id' => 'required',
+            'app_id' => 'required',
+            'terminal_id' =>  'required|numeric',
+            'activity' =>  'required|numeric',
+            'last_broadcast_ts' => 'max:6',
+            'old_activity' => 'numeric',
+            'message' => 'max:255',
+           
         ]);
  
         if ($validator->fails()) {
@@ -126,45 +134,55 @@ class CityController extends Controller
 
         try {
 
-            $city = City::where([
+            $dt = DeleteTaskLog::where([
                 ['id',$request->id],
-                ['version',$request->version],
-                ['states_id', $request->states_id]
+                ['version',$request->version]
+               
             ])->first();
+            $dt->version = $request->version + 1;
+            $dt->task_id  =  $request->task_id;
+            $dt->app_id = $request->app_id;
+            $dt->activity = $request->activity;
+            $dt->terminal_id = $request->terminal_id;
+            $dt->last_broadcast_ts = $request->last_broadcast_ts;
+            $dt->old_activity = $request->old_activity;
+            $dt->message = $request->message;
+           
 
-            $city->version = $request->version + 1;
-            $city->name = $request->name;
-            
-            if ($city->save()) {
+            if ($dt->save()) {
                 return response()->json(['responseCode' => '0000', //sukses update
-                                          'responseDesc' => 'City updated successfully',
+                                          'responseDesc' => 'Delete Task Log  updated successfully',
+                                        
                                         ]);
             }
         } catch (\Exception $e) {
-            return response()->json(['responseCode' => '3333', 'responseDesc' => "City Update Failure"]);
+            return response()->json([
+            'responseCode' => '3333', 
+            'responseDesc' => "Delete Task Log Update Failure"
+        ]);
         }
     }
     
     public function show(Request $request){
         try {
-            $city = City::where('id', $request->id)->with(['state' => function ($query) {
-                $query->select('id', 'name');
-            }])->get();
-            if($city->count()>0)
+            $t = DeleteTaskLog::where('id', $request->id);
+            if($t->get()->count()>0)
             {
+                $t =  $t->get();
                 return response()->json([
                     'responseCode' => '0000', 
                     'responseDesc' => 'OK',
-                    'data' => $city
-                   
+                    'data' => $t
+                    
                 ]);
             }
             else
             {
+           
                 return response()->json([
                     'responseCode' => '0400', 
                     'responseDesc' => 'Data Not Found',
-                    'data' =>  $city                    
+                    'data' => []                   
                 ]);
             }
             
@@ -175,9 +193,10 @@ class CityController extends Controller
         }
     }
 
+
     public function delete(Request $request){
         try {
-            $t= City::where('id','=',$request->id)
+            $t= DeleteTaskLog::where('id','=',$request->id)
             ->where('version','=',$request->version);
              $cn = $t->get()->count();
              if( $cn > 0)
@@ -187,7 +206,7 @@ class CityController extends Controller
                 $update_t->delete_ts = $current_date_time; 
                 $update_t->deleted_by = "admin";//Auth::user()->id 
                 if ($update_t->save()) {
-                     return response()->json(['responseCode' => '0000', 'responseDesc' => 'City deleted successfully']);
+                     return response()->json(['responseCode' => '0000', 'responseDesc' => 'Delete Task Log deleted successfully']);
                  }
              }
              else
@@ -201,7 +220,6 @@ class CityController extends Controller
         }
     }
 
-    
 
     
 }

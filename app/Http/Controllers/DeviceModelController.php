@@ -1,13 +1,13 @@
 <?php
 
 namespace App\Http\Controllers;
-use App\Models\City;
+use App\Models\DeviceModel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
 
 
-class CityController extends Controller
+class DeviceModelController extends Controller
 {
     public function list(Request $request){
 
@@ -15,34 +15,33 @@ class CityController extends Controller
 
                 $pageSize = $request->pageSize;
                 $pageNum = $request->pageNum;
-                $states_id = $request->states_id;
-                $name = $request->name;
-                $query = City ::query()
+                $model = $request->model;
+                $vendor_name = $request->vendor_name;
+                $vendor_country = $request->vendor_country;
+                
+                $query = DeviceModel::whereNull('deleted_by');
 
-                    ->with(['state' => function ($query) {
-                        $query->select('id', 'name');
-                        
-                    }])
-                    ->whereNull('deleted_by');
-                if($request->states_id != '')
+                 
+                if($request->model != '')
                 {
-                    $query->where('states_id', $request->states_id);
+                    $query->where('model', $request->model);
                 }
-                if($request->name != '')
+                if($request->vendor_name != '')
                 {
-                    $query->where('name', $request->name);
+                    $query->where('vendor_name', $request->vendor_name);
                 }
-
-                //$count = $query->get()->count();
+                if($request->vendor_country != '')
+                {
+                    $query->where('vendor_country', $request->vendor_country);
+                }
+               
+                $count = $query->get()->count();
             
                 $results = $query->offset(($pageNum-1) * $pageSize) 
-                ->limit($pageSize)->orderBy('create_ts', 'DESC')
+                ->limit($pageSize)->orderBy('model', 'ASC')
+                ->get(['id','model','vendor_name','vendor_country','version','created_by','create_ts','updated_by','update_ts']);
                 
-                ->get()->makeHidden(['delete_ts','deleted_by']);
-
-                $count = count($results->toArray());
-
-                if( $count  > 0)
+                if($count > 0)
                 {
                     return response()->json(['responseCode' => '0000', 
                                         'responseDesc' => 'OK',
@@ -57,17 +56,10 @@ class CityController extends Controller
                     return response()->json(['responseCode' => '0400', 
                                         'responseDesc' => 'Data Not Found',
                                         'rows' => $results
+                                        
                                     ]);
                 }
                 
-            
-                return response()->json(['responseCode' => '0000', 
-                                        'responseDesc' => 'OK',
-                                        'pageSize'  =>  $pageSize,
-                                        'totalPage' => ceil($count/$pageSize),
-                                        'total' => $count,
-                                        'rows' => $results
-                                    ]);
         } catch (\Exception $e) {
             return response()->json(['status' => '3333', 'message' => $e->getMessage()]);
         }
@@ -75,11 +67,12 @@ class CityController extends Controller
 
 
     public function create(Request $request){
-
-        
+     
         $validator = Validator::make($request->all(), [
-            'name' => 'required|max:50|unique:tms_city',
-            'states_id' => 'required' 
+            'model' => 'required|max:50|unique:tms_device_model',
+            'vendor_name' => 'required|max:100|unique:tms_device_model',
+            'vendor_country' => 'required',
+           
         ]);
  
         if ($validator->fails()) {
@@ -90,21 +83,23 @@ class CityController extends Controller
 
         try {
 
-            $city = new City();
-            $city->version = 1; 
-            $city->name = $request->name;
-            $city->states_id = $request->states_id;
-
-            if ($city->save()) {
+            $model = new DeviceModel();
+            $model->version = 1; 
+            $model->model = $request->model;
+            $model->vendor_name = $request->vendor_name;
+            $model->vendor_country = $request->vendor_country;
+            $model->model_information = $request->model_information;
+        
+            if ($model->save()) {
                 return response()->json(['responseCode' => '0000', //sukses insert
-                                          'responseDesc' => 'City created successfully',
-                                          
+                                          'responseDesc' => 'Device Model created successfully',
+                                          'generatedId' =>  $model->id
                                         ]);
             }
         } catch (\Exception $e) {
             return response()->json(['responseCode' => '3333', //gagal exception 
-                                     'responseDesc' =>  "City Create Failure"
-           ]);
+                                     'responseDesc' => $e->getMessage()
+                                    ]);
         }
 
     }
@@ -113,8 +108,6 @@ class CityController extends Controller
 
         $validator = Validator::make($request->all(), [
             'version' => 'required|numeric|max:32',
-            'name' => 'required|max:50|unique:tms_city',
-            'states_id' => 'required',
             'id' => 'required' 
         ]);
  
@@ -126,45 +119,55 @@ class CityController extends Controller
 
         try {
 
-            $city = City::where([
+            $dm = DeviceModel::where([
                 ['id',$request->id],
-                ['version',$request->version],
-                ['states_id', $request->states_id]
+                ['version',$request->version]
+               
             ])->first();
 
-            $city->version = $request->version + 1;
-            $city->name = $request->name;
+            $dm->version = $request->version + 1;
+            $dm->model = $request->model;
+            $dm->vendor_name = $request->vendor_name;
+            $dm->vendor_country = $request->vendor_country;
+            $dm->model_information = $request->model_information;
+          
             
-            if ($city->save()) {
+            if ($dm->save()) {
                 return response()->json(['responseCode' => '0000', //sukses update
-                                          'responseDesc' => 'City updated successfully',
+                                          'responseDesc' => 'Device Model updated successfully',
+                                        
                                         ]);
             }
         } catch (\Exception $e) {
-            return response()->json(['responseCode' => '3333', 'responseDesc' => "City Update Failure"]);
+            return response()->json([
+            'responseCode' => '3333', 
+            'responseDesc' => "Device Model Update Failure"
+        ]);
         }
     }
     
     public function show(Request $request){
         try {
-            $city = City::where('id', $request->id)->with(['state' => function ($query) {
-                $query->select('id', 'name');
-            }])->get();
-            if($city->count()>0)
+            $DeviceModel = DeviceModel::where('id', $request->id)->whereNull('deleted_by');
+            
+            
+            if($DeviceModel->get()->count()>0)
             {
+                $DeviceModel =  $DeviceModel->get()->makeHidden(['deleted_by', 'delete_ts']);
                 return response()->json([
                     'responseCode' => '0000', 
                     'responseDesc' => 'OK',
-                    'data' => $city
-                   
+                    'data' => $DeviceModel
+                    
                 ]);
             }
             else
             {
+           
                 return response()->json([
                     'responseCode' => '0400', 
                     'responseDesc' => 'Data Not Found',
-                    'data' =>  $city                    
+                    'data' => []                   
                 ]);
             }
             
@@ -175,19 +178,20 @@ class CityController extends Controller
         }
     }
 
+
     public function delete(Request $request){
         try {
-            $t= City::where('id','=',$request->id)
+            $m = DeviceModel::where('id','=',$request->id)
             ->where('version','=',$request->version);
-             $cn = $t->get()->count();
+             $cn = $m->get()->count();
              if( $cn > 0)
              {
-                $update_t = $t->first();
+                $updateMt = $m->first();
                 $current_date_time = \Carbon\Carbon::now()->toDateTimeString();
-                $update_t->delete_ts = $current_date_time; 
-                $update_t->deleted_by = "admin";//Auth::user()->id 
-                if ($update_t->save()) {
-                     return response()->json(['responseCode' => '0000', 'responseDesc' => 'City deleted successfully']);
+                $updateMt->delete_ts = $current_date_time; 
+                $updateMt->deleted_by = "admin";//Auth::user()->id 
+                if ($updateMt->save()) {
+                     return response()->json(['responseCode' => '0000', 'responseDesc' => 'Device Model  deleted successfully']);
                  }
              }
              else
@@ -201,7 +205,6 @@ class CityController extends Controller
         }
     }
 
-    
 
     
 }
