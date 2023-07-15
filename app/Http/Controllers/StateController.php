@@ -17,7 +17,7 @@ class StateController extends Controller
                 $pageNum = $request->pageNum;
                 $country_id = $request->country_id;
                 $name = $request->name;
-                $query = State::query()
+                $query = State::query()->whereNull('deleted_by')
                     ->with(['country' => function ($query) {
                         $query->select('id', 'code','name');
                     }]);

@@ -16,16 +16,17 @@ class City extends Model
 	const CREATED_AT = 'create_ts';
     const UPDATED_AT = 'update_ts';
     
-    //protected $fillable = [
-    //    'version', 'create_ts', 'created_by', 'update_ts', 'updated_by', 'delete_ts', 'deleted_by', 'name','states_id'
-    //];
+   
 
-    protected $hidden = ['states_id'];
+    //protected $hidden = ['states_id'];
 	
 	public function state()
     {
         return $this->belongsTo('App\Models\State', 'states_id', 'id');
+       //return $this->belongsTo('App\Models\State');
     }
+
+  
 
 
 }

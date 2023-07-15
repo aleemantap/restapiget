@@ -17,11 +17,13 @@ class CityController extends Controller
                 $pageNum = $request->pageNum;
                 $states_id = $request->states_id;
                 $name = $request->name;
-                $query = City
-                    ::query()
+                $query = City ::query()
+
                     ->with(['state' => function ($query) {
                         $query->select('id', 'name');
-                    }])->whereNull('deleted_by');
+                        
+                    }])
+                    ->whereNull('deleted_by');
                 if($request->states_id != '')
                 {
                     $query->where('states_id', $request->states_id);
@@ -31,10 +33,32 @@ class CityController extends Controller
                     $query->where('name', $request->name);
                 }
 
-                $count = $query->get()->count();
+                //$count = $query->get()->count();
             
                 $results = $query->offset(($pageNum-1) * $pageSize) 
-                ->limit($pageSize)->orderBy('name', 'ASC')->get();
+                ->limit($pageSize)->orderBy('create_ts', 'DESC')
+                
+                ->get()->makeHidden(['delete_ts','deleted_by']);
+
+                $count = count($results->toArray());
+
+                if( $count  > 0)
+                {
+                    return response()->json(['responseCode' => '0000', 
+                                        'responseDesc' => 'OK',
+                                        'pageSize'  =>  $pageSize,
+                                        'totalPage' => ceil($count/$pageSize),
+                                        'total' => $count,
+                                        'rows' => $results
+                                    ]);
+                }
+                else
+                {
+                    return response()->json(['responseCode' => '0400', 
+                                        'responseDesc' => 'Data Not Found',
+                                        'rows' => $results
+                                    ]);
+                }
                 
             
                 return response()->json(['responseCode' => '0000', 
@@ -153,21 +177,31 @@ class CityController extends Controller
 
     public function delete(Request $request){
         try {
-            $city = City::where([
-                ['id',$request->id],
-                ['version', $request->version]
-            ])->first();
-            $current_date_time = \Carbon\Carbon::now()->toDateTimeString();
-            $city->delete_ts = $current_date_time; 
-            $city->deleted_by = "admin";//Auth::user()->id
+            $t= City::where('id','=',$request->id)
+            ->where('version','=',$request->version);
+             $cn = $t->get()->count();
+             if( $cn > 0)
+             {
+                $update_t = $t->first();
+                $current_date_time = \Carbon\Carbon::now()->toDateTimeString();
+                $update_t->delete_ts = $current_date_time; 
+                $update_t->deleted_by = "admin";//Auth::user()->id 
+                if ($update_t->save()) {
+                     return response()->json(['responseCode' => '0000', 'responseDesc' => 'City deleted successfully']);
+                 }
+             }
+             else
+             {
+                     return response()->json(['responseCode' => '0400', 'responseDesc' => 'Data Not Found']);
+              }
+
             
-            if ($city->save()) {
-                return response()->json(['responseCode' => '0000', 'responseDesc' => 'State deleted successfully']);
-            }
         } catch (\Exception $e) {
             return response()->json(['responseCode' => '3333', 'responseDesc' => $e->getMessage()]);
         }
     }
+
+    
 
     
 }
