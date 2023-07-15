@@ -165,7 +165,7 @@ $router->group(['prefix' => 'api/v1'], function () use ($router) {
      $router->post('/diagnosticinfo/add', 'DiagnosticInfoController@create');
      $router->post('/diagnosticinfo/update', 'DiagnosticInfoController@update');
  
- 
+	/* Test */
  
 
 });
