@@ -20,11 +20,11 @@ class CountryController extends Controller
             $query = Country::query()->whereNull('deleted_by');
             if($request->code != '')
             {
-                $query->where('code', $request->code);
+                $query->where('code','ILIKE', '%'.$request->code.'%');
             }
             if($request->name != '')
             {
-                $query->where('name', $request->name);
+                $query->where('name', 'ILIKE','%'. $request->name.'%');
             }
 
             $count = $query->get()->count();
@@ -57,7 +57,7 @@ class CountryController extends Controller
                                      'responseDesc' => $validator->errors()]
                                     );
         }
-
+        DB::beginTransaction();
         try {
             $country = new Country();
             $country->version = 1; 
@@ -65,12 +65,17 @@ class CountryController extends Controller
             $country->name = $request->name;
             
             if ($country->save()) {
+
+                DB::commit();
                 return response()->json(['responseCode' => '0000', //sukses insert
-                                          'responseDesc' => 'Country created successfully',
+                                          //'responseDesc' => 'Country created successfully',
+                                          'responseDesc' => $this->responseSuccess,
                                           'generatedId'  =>  $country->id,
-                                        ]);
+                                        ]); 
             }
+           
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json(['responseCode' => '3333', //gagal exception 
                                      'responseDesc' => 'Country created Failure'
                                     ]);

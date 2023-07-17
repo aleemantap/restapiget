@@ -3,6 +3,9 @@
 /** @var \Laravel\Lumen\Routing\Router $router */
 $router->get('/product', 'ProductController@index');
 $router->group(['prefix' => 'api/v1'], function () use ($router) {
+    /**tes  */
+    $router->post('/file/add','FileController@store');
+    $router->get('/file/get','FileController@show');
 
     /* router country */
     $router->get('/country/list', 'CountryController@list');

@@ -105,11 +105,17 @@ $app->configure('app');
 | can respond to, as well as the controllers that may handle them.
 |
 */
+$app->register(App\Providers\MinIOStorageServiceProvider::class);
 
 $app->router->group([
     'namespace' => 'App\Http\Controllers',
 ], function ($router) {
     require __DIR__.'/../routes/web.php';
 });
+
+//collect(scandir(__DIR__ . '/../config'))->each(function ($item) use ($app) {
+  //  $app->configure(basename($item, '.php'));
+//});
+
 
 return $app;
