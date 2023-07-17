@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 
 class CountryController extends Controller
 {
+    //
     public function list(Request $request){
         try {   
             $pageSize = $request->pageSize;
